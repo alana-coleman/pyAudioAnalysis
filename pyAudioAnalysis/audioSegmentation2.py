@@ -465,15 +465,21 @@ def save_hmm(hmm_model_name, model, classes, mid_window, mid_step):
         cpickle.dump(mid_step, f_handle, protocol=cpickle.HIGHEST_PROTOCOL)
 
 
-def hmm_segmentation(audio_file, hmm_model_name, plot_results=False,
-                     gt_file=""):
+def hmm_segmentation(audio_file, hmm_model_name, plot_results=False, gt_file="", mf_object=None):
     sampling_rate, signal = audioBasicIO.read_audio_file(audio_file)
 
-    with open(hmm_model_name, "rb") as f_handle:
-        hmm = cpickle.load(f_handle)
-        class_names = cpickle.load(f_handle)
-        mid_window = cpickle.load(f_handle)
-        mid_step = cpickle.load(f_handle)
+    if mf_object is not None:
+        mf_object.seek(0)
+        hmm = cpickle.load(mf_object)
+        class_names = cpickle.load(mf_object)
+        mid_window = cpickle.load(mf_object)
+        mid_step = cpickle.load(mf_object)
+    else:
+        with open(hmm_model_name, "rb") as f_handle:
+            hmm = cpickle.load(f_handle)
+            class_names = cpickle.load(f_handle)
+            mid_window = cpickle.load(f_handle)
+            mid_step = cpickle.load(f_handle)
 
     features, _, _ = \
         mtf.mid_feature_extraction(signal, sampling_rate,
@@ -512,8 +518,7 @@ def calculate_confusion_matrix(predictions, ground_truth, classes):
     return cm
 
 
-def mid_term_file_classification(input_file, model_name, model_type,
-                                 plot_results=False, gt_file=""):
+def mid_term_file_classification(input_file, model_name, model_type, plot_results=False, gt_file="", mf_object=None, mfm_object=None):
     """
     This function performs mid-term classification of an audio stream.
     Towards this end, supervised knowledge is used,
@@ -536,17 +541,19 @@ def mid_term_file_classification(input_file, model_name, model_type,
     accuracy = 0.0
     class_names = []
     cm = np.array([])
-    if not os.path.isfile(model_name):
-        print("mtFileClassificationError: input model_type not found!")
-        return labels, class_names, accuracy, cm
+
+    if mf_object is None and mfm_object is None:
+        if not os.path.isfile(model_name):
+            print("mtFileClassificationError: input model_type not found!")
+            return labels, class_names, accuracy, cm
 
     # Load classifier:
     if model_type == "knn":
         classifier, mean, std, class_names, mt_win, mid_step, st_win, \
-         st_step, compute_beat = at.load_model_knn(model_name)
+         st_step, compute_beat = at.load_model_knn(model_name, False, mf_object)
     else:
         classifier, mean, std, class_names, mt_win, mid_step, st_win, \
-         st_step, compute_beat = at.load_model(model_name)
+         st_step, compute_beat = at.load_model(model_name, False, mf_object, mfm_object)
     if compute_beat:
         print("Model " + model_name + " contains long-term music features "
                                       "(beat etc) and cannot be used in "
@@ -626,7 +633,7 @@ def load_ground_truth(gt_file, labels, class_names, mid_step, plot_results):
     return labels_gt, class_names, accuracy, cm
 
 
-def evaluate_segmentation_classification_dir(dir_name, model_name, method_name):
+def evaluate_segmentation_classification_dir(dir_name, model_name, method_name, mf_object=None, mfm_object=None):
 
     accuracies = []
     class_names = []
@@ -640,10 +647,10 @@ def evaluate_segmentation_classification_dir(dir_name, model_name, method_name):
                                    "gradientboosting", "extratrees"]:
             flags_ind, class_names, accuracy, cm_temp = \
                 mid_term_file_classification(wav_file, model_name, method_name,
-                                             False, gt_file)
+                                             False, gt_file, mf_object, mfm_object)
         else:
             flags_ind, class_names, accuracy, cm_temp = \
-                hmm_segmentation(wav_file, model_name, False, gt_file)
+                hmm_segmentation(wav_file, model_name, False, gt_file, mf_object)
         if accuracy > 0:
             if not index:
                 cm_total = np.copy(cm_temp)
@@ -1177,6 +1184,3 @@ def music_thumbnailing(signal, sampling_rate, short_window=1.0, short_step=0.5,
 
     return short_step * i1, short_step * i2, short_step * j1, short_step * j2, \
         sim_matrix
-
-
-

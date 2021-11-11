@@ -501,20 +501,35 @@ def feature_extraction_train_regression(folder_name, mid_window, mid_step,
     return errors, errors_base, best_params
 
 
-def load_model_knn(knn_model_name, is_regression=False):
-    with open(knn_model_name, "rb") as fo:
-        features = cPickle.load(fo)
-        labels = cPickle.load(fo)
-        mean = cPickle.load(fo)
-        std = cPickle.load(fo)
+def load_model_knn(knn_model_name, is_regression=False, mf_object=None):
+    if mf_object is not None:
+        mf_object.seek(0)
+        features = cPickle.load(mf_object)
+        labels = cPickle.load(mf_object)
+        mean = cPickle.load(mf_object)
+        std = cPickle.load(mf_object)
         if not is_regression:
-            classes = cPickle.load(fo)
-        neighbors = cPickle.load(fo)
-        mid_window = cPickle.load(fo)
-        mid_step = cPickle.load(fo)
-        short_window = cPickle.load(fo)
-        short_step = cPickle.load(fo)
-        compute_beat = cPickle.load(fo)
+            classes = cPickle.load(mf_object)
+        neighbors = cPickle.load(mf_object)
+        mid_window = cPickle.load(mf_object)
+        mid_step = cPickle.load(mf_object)
+        short_window = cPickle.load(mf_object)
+        short_step = cPickle.load(mf_object)
+        compute_beat = cPickle.load(mf_object)
+    else:
+        with open(knn_model_name, "rb") as fo:
+            features = cPickle.load(fo)
+            labels = cPickle.load(fo)
+            mean = cPickle.load(fo)
+            std = cPickle.load(fo)
+            if not is_regression:
+                classes = cPickle.load(fo)
+            neighbors = cPickle.load(fo)
+            mid_window = cPickle.load(fo)
+            mid_step = cPickle.load(fo)
+            short_window = cPickle.load(fo)
+            short_step = cPickle.load(fo)
+            compute_beat = cPickle.load(fo)
 
     features = np.array(features)
     labels = np.array(labels)
@@ -532,7 +547,7 @@ def load_model_knn(knn_model_name, is_regression=False):
                short_window, short_step, compute_beat
 
 
-def load_model(model_name, is_regression=False):
+def load_model(model_name, is_regression=False, mf_object=None, mfm_object=None):
     """
     This function loads an SVM model either for classification or training.
     ARGMUMENTS:
@@ -540,22 +555,38 @@ def load_model(model_name, is_regression=False):
         - is_regression:     a flag indigating whereas this model
                              is regression or not
     """
-    with open(model_name + "MEANS", "rb") as fo:
-        mean = cPickle.load(fo)
-        std = cPickle.load(fo)
+    if mfm_object is not None:
+        mfm_object.seek(0)
+        mean = cPickle.load(mfm_object)
+        std = cPickle.load(mfm_object)
         if not is_regression:
-            classNames = cPickle.load(fo)
-        mid_window = cPickle.load(fo)
-        mid_step = cPickle.load(fo)
-        short_window = cPickle.load(fo)
-        short_step = cPickle.load(fo)
-        compute_beat = cPickle.load(fo)
+            classNames = cPickle.load(mfm_object)
+        mid_window = cPickle.load(mfm_object)
+        mid_step = cPickle.load(mfm_object)
+        short_window = cPickle.load(mfm_object)
+        short_step = cPickle.load(mfm_object)
+        compute_beat = cPickle.load(mfm_object)
+    else:
+        with open(model_name + "MEANS", "rb") as fo:
+            mean = cPickle.load(fo)
+            std = cPickle.load(fo)
+            if not is_regression:
+                classNames = cPickle.load(fo)
+            mid_window = cPickle.load(fo)
+            mid_step = cPickle.load(fo)
+            short_window = cPickle.load(fo)
+            short_step = cPickle.load(fo)
+            compute_beat = cPickle.load(fo)
 
     mean = np.array(mean)
     std = np.array(std)
 
-    with open(model_name, 'rb') as fid:
-        svm_model = cPickle.load(fid)
+    if mf_object is not None:
+        mf_object.seek(0)
+        svm_model = cPickle.load(mf_object)
+    else:
+        with open(model_name, 'rb') as fid:
+            svm_model = cPickle.load(fid)
 
     if is_regression:
         return svm_model, mean, std, mid_window, mid_step, short_window, \
@@ -1018,11 +1049,13 @@ def evaluate_model_for_folders(input_test_folders, model_name, model_type,
     return cm, thr_prre, pre, rec, thr_roc, fpr, tpr
 
 
-def file_classification(input_file, model_name, model_type):
+def file_classification(input_file, model_name, model_type, mf_object=None, mfm_object=None):
     # Load classifier:
-    if not os.path.isfile(model_name):
-        print("fileClassification: input model_name not found!")
-        return -1, -1, -1
+    # Skip this check if loaded model is provided
+    if mf_object is None and mfm_object is None:
+        if not os.path.isfile(model_name):
+            print("fileClassification: input model_name not found!")
+            return -1, -1, -1
 
     if isinstance(input_file, str) and not os.path.isfile(input_file):
         print("fileClassification: wav file not found!")
@@ -1030,10 +1063,10 @@ def file_classification(input_file, model_name, model_type):
 
     if model_type == 'knn':
         classifier, mean, std, classes, mid_window, mid_step, short_window, \
-            short_step, compute_beat = load_model_knn(model_name)
+            short_step, compute_beat = load_model_knn(model_name, False, mf_object)
     else:
         classifier, mean, std, classes, mid_window, mid_step, short_window, \
-            short_step, compute_beat = load_model(model_name)
+            short_step, compute_beat = load_model(model_name, False, mf_object, mfm_object)
 
     # read audio file and convert to mono
     sampling_rate, signal = audioBasicIO.read_audio_file(input_file)
@@ -1066,7 +1099,7 @@ def file_classification(input_file, model_name, model_type):
     return class_id, probability, classes
 
 
-def file_regression(input_file, model_name, model_type):
+def file_regression(input_file, model_name, model_type, mf_object=None, mfm_object=None):
     # Load classifier:
 
     if not os.path.isfile(input_file):
@@ -1088,7 +1121,7 @@ def file_regression(input_file, model_name, model_type):
     if model_type == 'svm' or model_type == "svm_rbf" or \
             model_type == 'randomforest':
         _, _, _, mid_window, mid_step, short_window, short_step, compute_beat \
-            = load_model(regression_models[0], True)
+            = load_model(regression_models[0], True, mf_object, mfm_object)
 
     # read audio file and convert to mono
     samping_rate, signal = audioBasicIO.read_audio_file(input_file)
@@ -1114,7 +1147,7 @@ def file_regression(input_file, model_name, model_type):
             return (-1, -1, -1)
         if model_type == 'svm' or model_type == "svm_rbf" \
                 or model_type == 'randomforest':
-            model, mean, std, _, _, _, _, _ = load_model(r, True)
+            model, mean, std, _, _, _, _, _ = load_model(r, True, mf_object, mfm_object)
         curFV = (mid_features - mean) / std  # normalization
         R.append(regression_wrapper(model, model_type, curFV))  # classification
     return R, regression_names
