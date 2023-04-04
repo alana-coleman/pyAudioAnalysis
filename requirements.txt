@@ -1,10 +1,10 @@
-matplotlib==3.4.3
-simplejson==3.17.5
-scipy==1.7.1
+matplotlib==3.7.0
+simplejson==3.18.4
+scipy==1.10.1
 numpy==1.20.3
-hmmlearn==0.2.6
+hmmlearn==0.2.8
 eyed3==0.9.6
 pydub==0.25.1
-scikit_learn==0.23.2
-tqdm==4.62.3
-plotly==5.3.1
+scikit_learn==0.24.2
+tqdm==4.65.0
+plotly==5.13.1
